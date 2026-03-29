@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Что это на кухне? - Hotspot</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { color: var(--primary); font-size: 1.8rem; margin-bottom: 5px; }
+        .info { color: #7f8c8d; margin-bottom: 20px; font-style: italic; }
+
+        .image-wrapper {
+            position: relative;
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            line-height: 0;
+            background: #eee;
+        }
+
+        #kitchen-img {
+            width: 100%;
+            height: auto;
+            display: block;
+            min-height: 300px;
+        }
+
+        .hotspot {
+            position: absolute;
+            width: 3.5%;
+            padding-bottom: 3.5%;
+            background: rgba(52, 152, 219, 0.7);
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            animation: pulse 2.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+
+        .hotspot:hover {
+            background: var(--success);
+            transform: translate(-50%, -50%) scale(1.3);
+            animation: none;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            pointer-events: none;
+            display: none;
+            transform: translate(-50%, -140%);
+            z-index: 10;
+            white-space: nowrap;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: var(--primary) transparent transparent transparent;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.3rem; }
+            .hotspot { width: 5%; padding-bottom: 5%; }
+            .tooltip { font-size: 1rem; padding: 6px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Что это на кухне?</h1>
+    <p class="info">Klicke auf die blauen Punkte, um die Gegenstände zu lernen.</p>
+
+    <div class="image-wrapper">
+        <!-- KORREKTUR: Der Dateiname muss exakt übereinstimmen -->
+        <img src="küche.jpg" id="kitchen-img" alt="Küchenplan">
+        
+        <div id="tooltip" class="tooltip"></div>
+
+        <div class="hotspot" style="top: 50%; left: 10%;" data-ru="холодильник"></div>
+        <div class="hotspot" style="top: 25%; left: 23%;" data-ru="шкаф"></div>
+        <div class="hotspot" style="top: 70%; left: 35%;" data-ru="плита и духовка"></div>
+        <div class="hotspot" style="top: 58%; left: 63%;" data-ru="раковина"></div>
+        <div class="hotspot" style="top: 80%; left: 68%;" data-ru="посудомоечная машина"></div>
+        <div class="hotspot" style="top: 31%; left: 88%;" data-ru="микроволновка"></div>
+        <div class="hotspot" style="top: 55%; left: 81%;" data-ru="кофемашина"></div>
+        <div class="hotspot" style="top: 58%; left: 90%;" data-ru="чайник"></div>
+        <div class="hotspot" style="top: 55%; left: 45%;" data-ru="кухонный стол"></div>
+    </div>
+</div>
+
+<script>
+    const tooltip = document.getElementById('tooltip');
+    const hotspots = document.querySelectorAll('.hotspot');
+
+    function speakRussian(text) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => 
+            v.lang.includes('ru') && 
+            (v.name.includes('Male') || v.name.includes('Pavel') || v.name.includes('Dmitry') || v.name.includes('Maxim'))
+        );
+        if (maleVoice) utterance.voice = maleVoice;
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    hotspots.forEach(spot => {
+        spot.addEventListener('click', (e) => {
+            const ruWord = spot.getAttribute('data-ru');
+            tooltip.innerText = ruWord;
+            tooltip.style.display = 'block';
+            tooltip.style.top = spot.style.top;
+            tooltip.style.left = spot.style.left;
+            speakRussian(ruWord);
+            setTimeout(() => {
+                if(tooltip.innerText === ruWord) tooltip.style.display = 'none';
+            }, 2500);
+        });
+    });
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+</script>
+
+</body>
+</html>
