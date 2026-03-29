@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasus-Check: Где? vs Нет чего?</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --locative-color: #8e44ad;
+            --genitive-color: #d35400;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 5px; font-size: 1.6rem; }
+        .instruction { color: #7f8c8d; margin-bottom: 25px; font-style: italic; }
+
+        /* Die aktuelle Satz-Karte */
+        .sentence-card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            min-height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            border-top: 5px solid var(--accent);
+            transition: transform 0.3s;
+        }
+
+        /* Kategorien-Buttons */
+        .categories {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .cat-btn {
+            padding: 20px;
+            border-radius: 15px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .btn-loc { background-color: var(--locative-color); }
+        .btn-gen { background-color: var(--genitive-color); }
+
+        .cat-btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        .cat-btn span { font-size: 0.8rem; font-weight: normal; opacity: 0.9; }
+
+        #feedback {
+            margin-top: 25px;
+            height: 30px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        #progress {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #b2bec3;
+        }
+
+        #restart-btn {
+            display: none;
+            margin-top: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        @media (max-width: 500px) {
+            .categories { grid-template-columns: 1fr; }
+            .sentence-card { font-size: 1.1rem; padding: 20px; }
+            h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Где? или Нет чего?</h1>
+    <p class="instruction">Ordne den Satz der richtigen grammatikalischen Kategorie zu.</p>
+    
+    <div id="game-ui">
+        <div class="sentence-card" id="sentence-card">
+            Lade...
+        </div>
+
+        <div class="categories">
+            <button class="cat-btn btn-loc" onclick="handleChoice('loc')">
+                ГДЕ?
+                <span>(Ort / Präpositiv)</span>
+            </button>
+            <button class="cat-btn btn-gen" onclick="handleChoice('gen')">
+                НЕТ ЧЕГО?
+                <span>(Negation / Genitiv)</span>
+            </button>
+        </div>
+
+        <div id="feedback"></div>
+        <div id="progress">Satz 1 von 10</div>
+    </div>
+
+    <button id="restart-btn" onclick="startGame()">Заново (Neustart)</button>
+</div>
+
+<script>
+    const data = [
+        { s: "Я живу в Москве.", type: "loc" },
+        { s: "У меня нет телевизора.", type: "gen" },
+        { s: "Зеркало висит в коридоре.", type: "loc" },
+        { s: "В квартире нет детской.", type: "gen" },
+        { s: "На кухне есть плита.", type: "loc" },
+        { s: "У меня нет балкона.", type: "gen" },
+        { s: "Книги стоят на полке.", type: "loc" },
+        { s: "В ванной нет окна.", type: "gen" },
+        { s: "Мы живём на восьмом этаже.", type: "loc" },
+        { s: "К сожалению, нет кабинета.", type: "gen" }
+    ];
+
+    let currentIdx = 0;
+    let canClick = true;
+
+    function speakRussian(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function startGame() {
+        data.sort(() => Math.random() - 0.5);
+        currentIdx = 0;
+        document.getElementById('restart-btn').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        loadSentence();
+    }
+
+    function loadSentence() {
+        canClick = true;
+        const item = data[currentIdx];
+        document.getElementById('sentence-card').innerText = item.s;
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('progress').innerText = `Satz ${currentIdx + 1} von ${data.length}`;
+        document.getElementById('sentence-card').style.borderColor = "var(--accent)";
+    }
+
+    function handleChoice(choice) {
+        if (!canClick) return;
+        
+        const item = data[currentIdx];
+        const card = document.getElementById('sentence-card');
+
+        if (choice === item.type) {
+            canClick = false;
+            card.style.borderColor = "var(--success)";
+            document.getElementById('feedback').innerText = "Правильно! ✓";
+            document.getElementById('feedback').style.color = "var(--success)";
+            
+            speakRussian(item.s); // Männliche Stimme liest den Satz vor
+
+            setTimeout(() => {
+                currentIdx++;
+                if (currentIdx < data.length) {
+                    loadSentence();
+                } else {
+                    showEnd();
+                }
+            }, 1800);
+        } else {
+            card.style.borderColor = "var(--error)";
+            document.getElementById('feedback').innerText = "Нет, это другой падеж.";
+            document.getElementById('feedback').style.color = "var(--error)";
+            setTimeout(() => {
+                card.style.borderColor = "var(--accent)";
+            }, 800);
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('game-ui').style.display = 'none';
+        document.getElementById('restart-btn').style.display = 'inline-block';
+        document.getElementById('feedback').innerText = "Отлично! Ты понимаешь разницу. 🎉";
+        document.getElementById('feedback').style.color = "var(--primary)";
+    }
+
+    // Chrome Sprach-Fix
+    window.speechSynthesis.onvoiceschanged = () => {};
+    
+    startGame();
+</script>
+
+</body>
+</html>
