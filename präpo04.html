@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>в или на? - Präpositions-Check</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 5px; font-size: 1.8rem; }
+        .instruction { color: #7f8c8d; margin-bottom: 30px; font-style: italic; }
+
+        /* Quiz-Bereich */
+        #quiz-card {
+            margin-bottom: 30px;
+        }
+
+        .emoji-display {
+            font-size: 4rem;
+            margin-bottom: 10px;
+        }
+
+        .phrase-display {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: var(--primary);
+        }
+
+        .gap {
+            display: inline-block;
+            width: 60px;
+            border-bottom: 3px solid var(--accent);
+            margin-right: 10px;
+            color: var(--accent);
+        }
+
+        /* Die zwei großen Kacheln */
+        .tiles-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .tile {
+            background: white;
+            border: 3px solid var(--accent);
+            border-radius: 15px;
+            padding: 30px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .tile:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-5px);
+        }
+
+        .tile.correct {
+            background: var(--success) !important;
+            border-color: var(--success) !important;
+            color: white !important;
+        }
+
+        .tile.wrong {
+            background: var(--error) !important;
+            border-color: var(--error) !important;
+            color: white !important;
+        }
+
+        #feedback {
+            margin-top: 20px;
+            height: 30px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        #progress {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #b2bec3;
+        }
+
+        #restart-btn {
+            display: none;
+            margin-top: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        @media (max-width: 480px) {
+            .tile { padding: 20px; font-size: 2rem; }
+            .phrase-display { font-size: 1.4rem; }
+            .emoji-display { font-size: 3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Где это находится?</h1>
+    <p class="instruction">Wähle die richtige Präposition: в oder на?</p>
+    
+    <div id="game-ui">
+        <div id="quiz-card">
+            <div class="emoji-display" id="emoji">🛋️</div>
+            <div class="phrase-display">
+                <span class="gap" id="gap-placeholder">...</span>
+                <span id="noun-phrase">диване</span>
+            </div>
+        </div>
+
+        <div class="tiles-container">
+            <div class="tile" onclick="handleChoice('в', this)">В</div>
+            <div class="tile" onclick="handleChoice('на', this)">НА</div>
+        </div>
+
+        <div id="feedback"></div>
+        <div id="progress">Вопрос 1 из 10</div>
+    </div>
+
+    <button id="restart-btn" onclick="startGame()">Заново (Neustart)</button>
+</div>
+
+<script>
+    const questions = [
+        { emoji: "🏢", noun: "восьмом этаже", answer: "на", full: "на восьмом этаже" },
+        { emoji: "🇷🇺", noun: "России", answer: "в", full: "в России" },
+        { emoji: "📍", noun: "юге Москвы", answer: "на", full: "на юге Москвы" },
+        { emoji: "📚", noun: "полке", answer: "на", full: "на полке" },
+        { emoji: "👗", noun: "шкафу", answer: "в", full: "в шкафу" },
+        { emoji: "🛋️", noun: "диване", answer: "на", full: "на диване" },
+        { emoji: "🧊", noun: "холодильнике", answer: "в", full: "в холодильнике" },
+        { emoji: "🖼️", noun: "стене", answer: "на", full: "на стене" },
+        { emoji: "🚿", noun: "ванной", answer: "в", full: "в ванной" },
+        { emoji: "🧥", noun: "коридоре", answer: "в", full: "в коридоре" }
+    ];
+
+    let currentIdx = 0;
+    let canClick = true;
+
+    function speakRussian(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel') || v.name.includes('Dmitry')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function startGame() {
+        questions.sort(() => Math.random() - 0.5);
+        currentIdx = 0;
+        document.getElementById('restart-btn').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        canClick = true;
+        const q = questions[currentIdx];
+        document.getElementById('emoji').innerText = q.emoji;
+        document.getElementById('noun-phrase').innerText = q.noun;
+        document.getElementById('gap-placeholder').innerText = "...";
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('progress').innerText = `Вопрос ${currentIdx + 1} из ${questions.length}`;
+        
+        document.querySelectorAll('.tile').forEach(t => t.className = 'tile');
+    }
+
+    function handleChoice(choice, element) {
+        if (!canClick) return;
+        
+        const q = questions[currentIdx];
+        if (choice === q.answer) {
+            canClick = false;
+            element.classList.add('correct');
+            document.getElementById('gap-placeholder').innerText = q.answer.toUpperCase();
+            document.getElementById('feedback').innerText = "Правильно!";
+            document.getElementById('feedback').style.color = "var(--success)";
+            
+            speakRussian(q.full); // Ganze Phrase männlich vorlesen
+
+            setTimeout(() => {
+                currentIdx++;
+                if (currentIdx < questions.length) {
+                    loadQuestion();
+                } else {
+                    showEnd();
+                }
+            }, 1800);
+        } else {
+            element.classList.add('wrong');
+            document.getElementById('feedback').innerText = "Нет, попробуй ещё раз.";
+            document.getElementById('feedback').style.color = "var(--error)";
+            setTimeout(() => {
+                element.classList.remove('wrong');
+            }, 800);
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('game-ui').style.display = 'none';
+        document.getElementById('restart-btn').style.display = 'inline-block';
+        document.getElementById('feedback').innerText = "Великолепно! Ты мастер предлогов. 🎉";
+        document.getElementById('feedback').style.color = "var(--primary)";
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+    startGame();
+</script>
+
+</body>
+</html>
