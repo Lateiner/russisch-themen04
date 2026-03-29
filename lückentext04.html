@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lückentext: Моя квартира</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+            line-height: 1.8;
+        }
+
+        .container {
+            max-width: 850px;
+            width: 100%;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin-top: 0; font-size: 1.8rem; text-align: center; }
+        .instruction { color: #7f8c8d; margin-bottom: 30px; text-align: center; font-style: italic; }
+
+        .sentence {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-bottom: 1px solid #f1f1f1;
+            font-size: 1.15rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select {
+            padding: 4px 8px;
+            border: 2px solid var(--accent);
+            border-radius: 6px;
+            background-color: white;
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: var(--primary);
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        select.correct {
+            border-color: var(--success);
+            background-color: #eafaf1;
+            color: var(--success);
+        }
+
+        select.wrong {
+            border-color: var(--error);
+            background-color: #fdf2f2;
+            color: var(--error);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        #reset-btn {
+            background: var(--primary);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            color: white;
+        }
+
+        #feedback-summary {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            min-height: 30px;
+        }
+
+        @media (max-width: 600px) {
+            .sentence { font-size: 1.05rem; gap: 5px; padding: 10px 5px; }
+            select { font-size: 0.95rem; padding: 2px 4px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Проверь грамматику</h1>
+    <p class="instruction">Wähle die richtige Form aus. Die Optionen werden bei jedem Start neu gemischt.</p>
+    
+    <div class="sentence-list" id="quiz">
+        <div class="sentence">
+            1. Моя квартира находится 
+            <select data-answer="в">
+                <option value="">...</option>
+                <option value="в">в</option>
+                <option value="на">на</option>
+            </select>
+            Москве.
+        </div>
+
+        <div class="sentence">
+            2. Я живу на восьмом этаж
+            <select data-answer="е">
+                <option value="">...</option>
+                <option value="е">е</option>
+                <option value="у">у</option>
+            </select>.
+        </div>
+
+        <div class="sentence">
+            3. В мо
+            <select data-answer="ей">
+                <option value="">...</option>
+                <option value="ём">ём</option>
+                <option value="ей">ей</option>
+            </select>
+            квартире одна комната.
+        </div>
+
+        <div class="sentence">
+            4. В спальн
+            <select data-answer="е">
+                <option value="">...</option>
+                <option value="е">е</option>
+                <option value="и">и</option>
+            </select>
+            стоит большая кровать.
+        </div>
+
+        <div class="sentence">
+            5. На кухн
+            <select data-answer="е">
+                <option value="">...</option>
+                <option value="е">е</option>
+                <option value="и">и</option>
+            </select>
+            есть плита и холодильник.
+        </div>
+
+        <div class="sentence">
+            6. В моей квартире нет детск
+            <select data-answer="ой">
+                <option value="">...</option>
+                <option value="ой">ой</option>
+                <option value="ая">ая</option>
+            </select>
+            комнаты.
+        </div>
+
+        <div class="sentence">
+            7. Со мно
+            <select data-answer="й">
+                <option value="">...</option>
+                <option value="й">й</option>
+                <option value="ю">ю</option>
+            </select>
+            живёт моя собака.
+        </div>
+
+        <div class="sentence">
+            8. Мы переехали в эт
+            <select data-answer="у">
+                <option value="">...</option>
+                <option value="у">у</option>
+                <option value="ой">ой</option>
+            </select>
+            квартиру летом.
+        </div>
+
+        <div class="sentence">
+            9. Зеркало висит 
+            <select data-answer="в">
+                <option value="">...</option>
+                <option value="в">в</option>
+                <option value="на">на</option>
+            </select>
+            коридоре.
+        </div>
+
+        <div class="sentence">
+            10. Мы живём здесь почт
+            <select data-answer="и">
+                <option value="">...</option>
+                <option value="и">и</option>
+                <option value="ь">ь</option>
+            </select>
+            один год.
+        </div>
+    </div>
+
+    <div id="feedback-summary"></div>
+
+    <div class="controls">
+        <button id="reset-btn">Заново (Neustart)</button>
+    </div>
+</div>
+
+<script>
+    const selects = document.querySelectorAll('select');
+    const feedbackSummary = document.getElementById('feedback-summary');
+    const resetBtn = document.getElementById('reset-btn');
+
+    // Männliche Stimme suchen
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel') || v.name.includes('Dmitry')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 1.0;
+        window.speechSynthesis.speak(msg);
+    }
+
+    // Funktion zum Mischen der Optionen innerhalb der Selects
+    function shuffleOptions() {
+        selects.forEach(select => {
+            const options = Array.from(select.querySelectorAll('option')).filter(opt => opt.value !== "");
+            // Zufällig sortieren
+            options.sort(() => Math.random() - 0.5);
+            
+            // Erst alle entfernen (außer den Platzhalter "...")
+            const placeholder = select.querySelector('option[value=""]');
+            select.innerHTML = '';
+            select.appendChild(placeholder);
+            
+            // In neuer Reihenfolge hinzufügen
+            options.forEach(opt => select.appendChild(opt));
+        });
+    }
+
+    selects.forEach(select => {
+        select.addEventListener('change', () => {
+            const val = select.value;
+            const ans = select.getAttribute('data-answer');
+
+            if (val === "") {
+                select.classList.remove('correct', 'wrong');
+                return;
+            }
+
+            if (val === ans) {
+                select.classList.remove('wrong');
+                select.classList.add('correct');
+                speak("Правильно"); 
+            } else {
+                select.classList.remove('correct');
+                select.classList.add('wrong');
+                speak("Нет"); 
+            }
+            
+            checkAllFinished();
+        });
+    });
+
+    function checkAllFinished() {
+        const all = Array.from(selects);
+        const correctCount = all.filter(s => s.classList.contains('correct')).length;
+        const total = all.length;
+
+        if (correctCount === total) {
+            feedbackSummary.innerText = "Молодец! Всё правильно. 🎉";
+            feedbackSummary.style.color = "var(--success)";
+            speak("Молодец! Всё правильно.");
+        } else {
+            feedbackSummary.innerText = `Правильно: ${correctCount} из ${total}`;
+            feedbackSummary.style.color = "var(--primary)";
+        }
+    }
+
+    resetBtn.onclick = () => {
+        selects.forEach(select => {
+            select.value = "";
+            select.classList.remove('correct', 'wrong');
+        });
+        feedbackSummary.innerText = "";
+        shuffleOptions(); // Bei Neustart auch wieder mischen
+    };
+
+    // Beim ersten Laden mischen
+    window.speechSynthesis.onvoiceschanged = () => {};
+    shuffleOptions();
+</script>
+
+</body>
+</html>
