@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vokabel-Memory: Моя квартира</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --bg: #f0f3f5;
+            --card-back: #2c3e50;
+            --card-front: #ffffff;
+            --error: #e74c3c;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 10px; font-size: 1.8rem; }
+        
+        #stats {
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 30px;
+        }
+
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            perspective: 1000px;
+            min-height: 400px; /* Verhindert Springen des Layouts */
+        }
+
+        .memory-card {
+            aspect-ratio: 1 / 1;
+            position: relative;
+            cursor: pointer;
+            transform-style: preserve-3d;
+            transition: transform 0.5s, opacity 0.5s, visibility 0.5s;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .memory-card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* Verschwinden-Animation */
+        .memory-card.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            border: 2px solid #fff;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .card-back {
+            background-color: var(--card-back);
+            color: white;
+            font-size: 2rem;
+        }
+
+        .card-front {
+            background-color: var(--card-front);
+            transform: rotateY(180deg);
+            color: var(--primary);
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .card-front .emoji { font-size: 2rem; margin-bottom: 5px; }
+        .card-front .text { font-size: 0.85rem; display: block; }
+        .card-front .russian { font-size: 1.1rem; }
+
+        .controls { 
+            margin-top: 30px; 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: white;
+        }
+
+        #restart-btn { background: var(--error); }
+        #solution-btn { background: var(--success); }
+        button:hover { opacity: 0.8; }
+
+        @media (max-width: 600px) {
+            .memory-grid { grid-template-columns: repeat(3, 1fr); }
+            h1 { font-size: 1.4rem; }
+        }
+        @media (max-width: 400px) {
+            .memory-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Vokabel-Memory</h1>
+    <div id="stats">Paare gefunden: <span id="matches">0</span> / 10</div>
+
+    <div class="memory-grid" id="grid"></div>
+
+    <div class="controls">
+        <button id="restart-btn">Neustart / Заново</button>
+        <button id="solution-btn">Lösung anzeigen</button>
+    </div>
+</div>
+
+<script>
+    const data = [
+        { ru: "спальня", de: "Schlafzimmer", emoji: "🛏️" },
+        { ru: "детская", de: "Kinderzimmer", emoji: "🧸" },
+        { ru: "кухня", de: "Küche", emoji: "🍳" },
+        { ru: "гостиная", de: "Wohnzimmer", emoji: "🛋️" },
+        { ru: "столовая", de: "Esszimmer", emoji: "🍽️" },
+        { ru: "коридор", de: "Flur", emoji: "🧥" },
+        { ru: "ванная", de: "Badezimmer", emoji: "🚿" },
+        { ru: "кабинет", de: "Arbeitszimmer", emoji: "💻" },
+        { ru: "кладовая", de: "Abstellkammer", emoji: "📦" },
+        { ru: "балкон", de: "Balkon", emoji: "🪴" }
+    ];
+
+    const pairColors = ["#FFD1DC", "#FFECB3", "#C1E1C1", "#AEC6CF", "#E6E6FA", "#FFDAB9", "#F0E68C", "#B2DFDB", "#D1C4E9", "#F8BBD0"];
+
+    let flippedCards = [];
+    let matchedCount = 0;
+    let lockBoard = false;
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.85;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function createBoard() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        matchedCount = 0;
+        flippedCards = [];
+        lockBoard = false;
+        document.getElementById('matches').innerText = '0';
+        
+        let deck = [];
+        data.forEach((item, index) => {
+            deck.push({ type: 'ru', content: item.ru, pairId: index });
+            deck.push({ type: 'de', content: item.de, emoji: item.emoji, pairId: index });
+        });
+
+        deck.sort(() => Math.random() - 0.5);
+
+        deck.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'memory-card';
+            card.dataset.pairId = item.pairId;
+            card.dataset.type = item.type;
+
+            card.innerHTML = `
+                <div class="card-face card-back">?</div>
+                <div class="card-face card-front">
+                    ${item.type === 'ru' 
+                        ? `<span class="russian">${item.content}</span>` 
+                        : `<span class="emoji">${item.emoji}</span><span class="text">${item.content}</span>`}
+                </div>
+            `;
+
+            card.addEventListener('click', flipCard);
+            grid.appendChild(card);
+        });
+    }
+
+    function flipCard() {
+        if (lockBoard) return;
+        if (this.classList.contains('flipped')) return;
+
+        this.classList.add('flipped');
+
+        if (this.dataset.type === 'ru') {
+            speak(this.querySelector('.russian').innerText);
+        }
+
+        flippedCards.push(this);
+
+        if (flippedCards.length === 2) {
+            checkMatch();
+        }
+    }
+
+    function checkMatch() {
+        const [card1, card2] = flippedCards;
+        const isMatch = card1.dataset.pairId === card2.dataset.pairId;
+
+        if (isMatch) {
+            matchedCount++;
+            document.getElementById('matches').innerText = matchedCount;
+            lockBoard = true;
+            
+            // Gefundene Paare nach kurzem Zeigen ausblenden
+            setTimeout(() => {
+                card1.classList.add('hidden');
+                card2.classList.add('hidden');
+                flippedCards = [];
+                lockBoard = false;
+                if (matchedCount === data.length) {
+                    alert("Gut gemacht! Alles gefunden.");
+                }
+            }, 800);
+        } else {
+            lockBoard = true;
+            setTimeout(() => {
+                card1.classList.remove('flipped');
+                card2.classList.remove('flipped');
+                flippedCards = [];
+                lockBoard = false;
+            }, 1000);
+        }
+    }
+
+    // Lösung anzeigen
+    document.getElementById('solution-btn').onclick = () => {
+        lockBoard = true;
+        const allCards = document.querySelectorAll('.memory-card');
+        
+        allCards.forEach(card => {
+            card.classList.remove('hidden'); // Alle wieder einblenden
+            card.classList.add('flipped');
+            const pairId = card.dataset.pairId;
+            const frontFace = card.querySelector('.card-front');
+            frontFace.style.backgroundColor = pairColors[pairId];
+            frontFace.style.borderColor = "#333";
+        });
+
+        document.getElementById('stats').innerText = "Lösung";
+    };
+
+    document.getElementById('restart-btn').onclick = () => {
+        document.getElementById('stats').innerHTML = 'Paare gefunden: <span id="matches">0</span> / 10';
+        createBoard();
+    };
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+    createBoard();
+</script>
+
+</body>
+</html>
