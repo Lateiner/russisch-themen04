@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Верно или неверно? - Swipe Quiz</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f0f3f5;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--primary);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        h1 { font-size: 1.5rem; margin-bottom: 5px; }
+        .instruction { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px; }
+
+        /* Kartenstapel-Bereich */
+        .card-container {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        .swipe-card {
+            position: absolute;
+            width: 90%;
+            height: 300px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.3s ease, opacity 0.3s;
+            touch-action: none;
+        }
+
+        .swipe-card:active { cursor: grabbing; }
+
+        .swipe-card p {
+            font-size: 1.3rem;
+            font-weight: bold;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        /* Swipe-Indikatoren */
+        .indicator {
+            position: absolute;
+            top: 20px;
+            padding: 5px 15px;
+            border: 4px solid;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .indicator.true { border-color: var(--success); color: var(--success); right: 20px; transform: rotate(15deg); }
+        .indicator.false { border-color: var(--error); color: var(--error); left: 20px; transform: rotate(-15deg); }
+
+        /* Buttons für Desktop */
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px 0;
+            gap: 20px;
+        }
+
+        .btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .btn:hover { transform: scale(1.1); }
+        .btn-no { background-color: var(--error); }
+        .btn-yes { background-color: var(--success); }
+
+        #score-display {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        #score-display h2 { color: var(--accent); }
+        #restart-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Верно или неверно?</h1>
+    <p class="instruction">Wische nach rechts (Richtig) oder links (Falsch).</p>
+
+    <div class="card-container" id="card-container">
+        <!-- Karten werden per JS geladen -->
+    </div>
+
+    <div id="score-display">
+        <h2 id="final-result">Отлично!</h2>
+        <p id="score-text"></p>
+        <button id="restart-btn" onclick="location.reload()">Заново (Neustart)</button>
+    </div>
+
+    <div class="controls" id="btn-controls">
+        <button class="btn btn-no" onclick="handleButtonClick(false)">✖</button>
+        <button class="btn btn-yes" onclick="handleButtonClick(true)">✔</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { text: "Квартира Иры находится в Москве.", ans: true },
+        { text: "У Иры есть балкон и лоджия.", ans: false },
+        { text: "В квартире есть спальня, но нет детской.", ans: true },
+        { text: "Ира живёт в квартире одна.", ans: false },
+        { text: "Ира очень любит растения.", ans: true },
+        { text: "В гостиной висит большой телевизор.", ans: false },
+        { text: "Кладовка находится на минус первом этаже.", ans: true },
+        { text: "В ванной комнате есть стиральная машина.", ans: true },
+        { text: "Ира живёт на восьмом этаже.", ans: true },
+        { text: "Кухня и гостиная — это разные комнаты.", ans: false }
+    ];
+
+    let currentIdx = 0;
+    let score = 0;
+    let currentCard = null;
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function createCard() {
+        if (currentIdx >= questions.length) {
+            showResult();
+            return;
+        }
+
+        const container = document.getElementById('card-container');
+        const card = document.createElement('div');
+        card.className = 'swipe-card';
+        card.innerHTML = `
+            <div class="indicator true">Верно</div>
+            <div class="indicator false">Нет</div>
+            <p>${questions[currentIdx].text}</p>
+        `;
+        
+        container.appendChild(card);
+        currentCard = card;
+        speak(questions[currentIdx].text);
+        initTouch(card);
+    }
+
+    function initTouch(card) {
+        let startX = 0;
+        let currentX = 0;
+
+        card.addEventListener('touchstart', e => startX = e.touches[0].clientX);
+        card.addEventListener('touchmove', e => {
+            currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+            const rotation = diff / 10;
+            card.style.transform = `translateX(${diff}px) rotate(${rotation}deg)`;
+            
+            const trueLabel = card.querySelector('.indicator.true');
+            const falseLabel = card.querySelector('.indicator.false');
+            
+            if (diff > 50) { trueLabel.style.opacity = 1; falseLabel.style.opacity = 0; }
+            else if (diff < -50) { falseLabel.style.opacity = 1; trueLabel.style.opacity = 0; }
+            else { trueLabel.style.opacity = 0; falseLabel.style.opacity = 0; }
+        });
+
+        card.addEventListener('touchend', e => {
+            const diff = currentX - startX;
+            if (Math.abs(diff) > 100) {
+                const choice = diff > 0;
+                processChoice(choice);
+            } else {
+                card.style.transform = '';
+                card.querySelector('.indicator.true').style.opacity = 0;
+                card.querySelector('.indicator.false').style.opacity = 0;
+            }
+            startX = 0; currentX = 0;
+        });
+    }
+
+    function handleButtonClick(choice) {
+        if (!currentCard) return;
+        const direction = choice ? 500 : -500;
+        currentCard.style.transform = `translateX(${direction}px) rotate(${choice ? 30 : -30}deg)`;
+        currentCard.style.opacity = 0;
+        processChoice(choice);
+    }
+
+    function processChoice(choice) {
+        const correct = questions[currentIdx].ans;
+        if (choice === correct) score++;
+        
+        currentCard.style.pointerEvents = 'none';
+        setTimeout(() => {
+            currentCard.remove();
+            currentIdx++;
+            createCard();
+        }, 300);
+    }
+
+    function showResult() {
+        document.getElementById('btn-controls').style.display = 'none';
+        document.getElementById('card-container').style.display = 'none';
+        const display = document.getElementById('score-display');
+        display.style.display = 'block';
+        document.getElementById('score-text').innerText = `Du hast ${score} von ${questions.length} Fragen richtig beantwortet.`;
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+    createBoard = createCard();
+</script>
+
+</body>
+</html>
