@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Что на картинке? - Emoji Edition</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 5px; font-size: 1.6rem; }
+        .instruction { color: #7f8c8d; margin-bottom: 25px; font-style: italic; }
+
+        /* Der Satz */
+        #sentence-display {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            min-height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 4px solid var(--accent);
+        }
+
+        /* Die zwei Auswahlboxen */
+        .option-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .option-card {
+            background: white;
+            padding: 40px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 4px solid #dfe6e9;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 5rem; /* Emoji Größe */
+            user-select: none;
+        }
+
+        .option-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent);
+        }
+
+        .option-card.correct {
+            border-color: var(--success);
+            background-color: #eafaf1;
+            transform: scale(1.05);
+        }
+
+        .option-card.wrong {
+            border-color: var(--error);
+            background-color: #fdf2f2;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        #feedback {
+            height: 35px;
+            font-weight: bold;
+            font-size: 1.3rem;
+            margin-top: 10px;
+        }
+
+        #progress {
+            margin-top: 15px;
+            font-size: 1rem;
+            color: #b2bec3;
+            font-weight: bold;
+        }
+
+        .restart-btn {
+            display: none;
+            margin-top: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 35px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 500px) {
+            .option-grid { grid-template-columns: 1fr; }
+            #sentence-display { font-size: 1.3rem; padding: 15px; }
+            .option-card { padding: 30px 10px; font-size: 4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Что на картинке?</h1>
+    <p class="instruction">Welches Emoji passt zum Satz? Klicke darauf.</p>
+    
+    <div id="game-ui">
+        <div id="sentence-display">Загрузка...</div>
+
+        <div class="option-grid">
+            <div class="option-card" id="card-0" onclick="handleChoice(0)"></div>
+            <div class="option-card" id="card-1" onclick="handleChoice(1)"></div>
+        </div>
+
+        <div id="feedback"></div>
+        <div id="progress">Вопрос 1 из 10</div>
+    </div>
+
+    <button class="restart-btn" id="restart-btn" onclick="startGame()">Заново (Neustart)</button>
+</div>
+
+<script>
+    // 10 Aufgaben mit Emojis
+    const tasks = [
+        { sentence: "На столе стоит ноутбук.", options: ["💻", "📚"], correct: 0 },
+        { sentence: "На полке стоят книги.", options: ["🪴", "📚"], correct: 1 },
+        { sentence: "В ванной есть стиральная машина.", options: ["🧼", "🚿"], correct: 0 },
+        { sentence: "На диване спит собака.", options: ["🐈", "🐕"], correct: 1 },
+        { sentence: "На окне стоят цветы.", options: ["🪴", "🪟"], correct: 0 },
+        { sentence: "На кухне стоит кофемашина.", options: ["☕", "🫖"], correct: 0 },
+        { sentence: "В коридоре висит зеркало.", options: ["🖼️", "🪞"], correct: 1 },
+        { sentence: "На столе стоит чайник.", options: ["🫖", "☕"], correct: 0 },
+        { sentence: "В комнате стоит большой шкаф.", options: ["🚪", "🛋️"], correct: 0 },
+        { sentence: "На стене висят постеры.", options: ["🖼️", "🪞"], correct: 0 }
+    ];
+
+    let currentIdx = 0;
+    let canClick = true;
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel') || v.name.includes('Dmitry')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function startGame() {
+        tasks.sort(() => Math.random() - 0.5); // Fragen mischen
+        currentIdx = 0;
+        document.getElementById('restart-btn').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        loadTask();
+    }
+
+    function loadTask() {
+        canClick = true;
+        const task = tasks[currentIdx];
+        document.getElementById('sentence-display').innerText = task.sentence;
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('progress').innerText = `Вопрос ${currentIdx + 1} из ${tasks.length}`;
+        
+        // Karten zurücksetzen und mit Emojis füllen
+        for (let i = 0; i < 2; i++) {
+            const card = document.getElementById(`card-${i}`);
+            card.innerText = task.options[i];
+            card.className = 'option-card';
+        }
+        
+        speak(task.sentence);
+    }
+
+    function handleChoice(choiceIdx) {
+        if (!canClick) return;
+        
+        const task = tasks[currentIdx];
+        const selectedCard = document.getElementById(`card-${choiceIdx}`);
+
+        if (choiceIdx === task.correct) {
+            canClick = false;
+            selectedCard.classList.add('correct');
+            document.getElementById('feedback').innerText = "Правильно! ✓";
+            document.getElementById('feedback').style.color = "var(--success)";
+            
+            setTimeout(() => {
+                currentIdx++;
+                if (currentIdx < tasks.length) {
+                    loadTask();
+                } else {
+                    showEnd();
+                }
+            }, 1500);
+        } else {
+            selectedCard.classList.add('wrong');
+            document.getElementById('feedback').innerText = "Нет, это не то.";
+            document.getElementById('feedback').style.color = "var(--error)";
+            setTimeout(() => selectedCard.classList.remove('wrong'), 600);
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('game-ui').style.display = 'none';
+        document.getElementById('restart-btn').style.display = 'inline-block';
+        document.getElementById('feedback').innerText = "Отлично! Ты всё правильно понимаешь. 🎉";
+        document.getElementById('feedback').style.color = "var(--primary)";
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+    startGame();
+</script>
+
+</body>
+</html>
