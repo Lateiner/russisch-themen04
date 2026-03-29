@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gegenstände sortieren: Моя квартира</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 5px; }
+        .instruction { color: #7f8c8d; margin-bottom: 20px; }
+
+        /* Aktueller Gegenstand */
+        #item-display {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 3px solid var(--accent);
+        }
+
+        #current-word {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 0;
+        }
+
+        #progress {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #95a5a6;
+        }
+
+        /* Räume Gitter */
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
+        }
+
+        .room-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #ecf0f1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .room-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        .room-card.flash-success { background-color: #d4edda; border-color: var(--success); }
+        .room-card.flash-error { background-color: #f8d7da; border-color: var(--error); }
+
+        .room-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .room-name { font-weight: bold; font-size: 1.1rem; }
+
+        /* Controls */
+        #restart-btn {
+            margin-top: 30px;
+            background: var(--error);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+        }
+
+        @media (max-width: 500px) {
+            .rooms-grid { grid-template-columns: 1fr; }
+            #current-word { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Где это стоит?</h1>
+    <p class="instruction">Wohin gehört dieser Gegenstand? Klicke auf den richtigen Raum.</p>
+
+    <div id="item-display">
+        <p id="current-word">Lade...</p>
+        <div id="progress">Gegenstand 1 von 15</div>
+    </div>
+
+    <div class="rooms-grid">
+        <div class="room-card" onclick="checkAnswer('кухня')">
+            <span class="room-icon">🍳</span>
+            <span class="room-name">кухня</span>
+        </div>
+        <div class="room-card" onclick="checkAnswer('спальня')">
+            <span class="room-icon">🛏️</span>
+            <span class="room-name">спальня</span>
+        </div>
+        <div class="room-card" onclick="checkAnswer('гостиная')">
+            <span class="room-icon">🛋️</span>
+            <span class="room-name">гостиная</span>
+        </div>
+        <div class="room-card" onclick="checkAnswer('ванная')">
+            <span class="room-icon">🚿</span>
+            <span class="room-name">ванная</span>
+        </div>
+    </div>
+
+    <button id="restart-btn" onclick="startGame()">Nochmal spielen / Заново</button>
+</div>
+
+<script>
+    const items = [
+        { word: "холодильник", room: "кухня" },
+        { word: "плита", room: "кухня" },
+        { word: "духовка", room: "кухня" },
+        { word: "посудомоечная машина", room: "кухня" },
+        { word: "микроволновка", room: "кухня" },
+        { word: "кровать", room: "спальня" },
+        { word: "письменный стол", room: "спальня" },
+        { word: "шкаф", room: "спальня" },
+        { word: "прикроватный столик", room: "спальня" },
+        { word: "диван", room: "гостиная" },
+        { word: "проектор", room: "гостиная" },
+        { word: "полка", room: "гостиная" },
+        { word: "постеры", room: "гостиная" },
+        { word: "стиральная машина", room: "ванная" },
+        { word: "унитаз", room: "ванная" }
+    ];
+
+    let gameItems = [];
+    let currentIndex = 0;
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.85;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function startGame() {
+        gameItems = [...items].sort(() => Math.random() - 0.5);
+        currentIndex = 0;
+        document.getElementById('restart-btn').style.display = 'none';
+        showNextItem();
+    }
+
+    function showNextItem() {
+        if (currentIndex < gameItems.length) {
+            const item = gameItems[currentIndex];
+            document.getElementById('current-word').innerText = item.word;
+            document.getElementById('progress').innerText = `Gegenstand ${currentIndex + 1} von ${gameItems.length}`;
+            speak(item.word);
+        } else {
+            document.getElementById('current-word').innerText = "Gut gemacht! 🎉";
+            document.getElementById('progress').innerText = "Alle Gegenstände sind an ihrem Platz.";
+            document.getElementById('restart-btn').style.display = 'inline-block';
+        }
+    }
+
+    function checkAnswer(selectedRoom) {
+        if (currentIndex >= gameItems.length) return;
+
+        const correctRoom = gameItems[currentIndex].room;
+        const cards = document.querySelectorAll('.room-card');
+        const targetCard = Array.from(cards).find(c => c.querySelector('.room-name').innerText === selectedRoom);
+
+        if (selectedRoom === correctRoom) {
+            targetCard.classList.add('flash-success');
+            setTimeout(() => {
+                targetCard.classList.remove('flash-success');
+                currentIndex++;
+                showNextItem();
+            }, 600);
+        } else {
+            targetCard.classList.add('flash-error');
+            setTimeout(() => targetCard.classList.remove('flash-error'), 600);
+            speak("Нет"); // Sagt "Nein" bei Fehlern
+        }
+    }
+
+    // Chrome Stimmen laden
+    window.speechSynthesis.onvoiceschanged = () => {};
+    
+    // Start
+    startGame();
+</script>
+
+</body>
+</html>
