@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russisch Lernkartei: Моя квартира</title>
+    <style>
+        :root {
+            --primary-green: #2e7d32;
+            --medium-green: #4caf50;
+            --light-green: #e8f5e9;
+            --accent-green: #1b5e20;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f1f8e9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-green);
+            margin-bottom: 20px;
+        }
+
+        .progress {
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary-green);
+        }
+
+        /* Flashcard 3D Design */
+        .flashcard-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 300px;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .flashcard {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-radius: 15px;
+        }
+
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .flashcard-front, .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            border: 4px solid var(--medium-green);
+            background-color: var(--card-bg);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .flashcard-back {
+            transform: rotateY(180deg);
+            background-color: var(--light-green);
+        }
+
+        .term {
+            font-size: 2.5rem;
+            font-weight: bold;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        /* Dynamische Schriftgröße für langen Text */
+        .long-text {
+            font-size: 1.6rem !important;
+        }
+
+        .label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--medium-green);
+            margin-bottom: 10px;
+            position: absolute;
+            top: 15px;
+        }
+
+        /* Buttons */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button {
+            background-color: var(--medium-green);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            min-width: 120px;
+        }
+
+        button:hover {
+            background-color: var(--primary-green);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-nav {
+            background-color: var(--primary-green);
+        }
+
+        .btn-action {
+            background-color: var(--accent-green);
+        }
+
+        /* Footer Info */
+        .hint {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        @media (max-width: 480px) {
+            .flashcard-container { height: 250px; }
+            .term { font-size: 1.8rem; }
+            .long-text { font-size: 1.3rem !important; }
+            button { padding: 10px 15px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Моя квартира</h1>
+    
+    <div class="progress" id="progress">1 / 100</div>
+
+    <div class="flashcard-container" onclick="flipCard()">
+        <div class="flashcard" id="card">
+            <div class="flashcard-front">
+                <span class="label">Russisch</span>
+                <div class="term" id="front-text">кварти́ра</div>
+            </div>
+            <div class="flashcard-back">
+                <span class="label">Deutsch</span>
+                <div class="term" id="back-text">Wohnung</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-nav" onclick="prevCard()">← Vorherige</button>
+        <button class="btn-nav" onclick="nextCard()">Nächste →</button>
+        <button class="btn-action" onclick="shuffleDeck()">Mischen</button>
+        <button class="btn-action" onclick="goHome()">An den Anfang</button>
+    </div>
+
+    <div class="hint">
+        Tastatur: Pfeiltasten (← →), Leertaste/Enter (Umdrehen), Pos1 (Anfang)
+    </div>
+</div>
+
+<script>
+    // Die Vokabeldaten
+    const originalData = [
+        ["кварти́ра", "Wohnung"], ["ко́мната", "Zimmer"], ["коридо́р", "Flur"], ["ку́хня", "Küche"], 
+        ["гости́ная", "Wohnzimmer"], ["спа́льня", "Schlafzimmer"], ["ва́нная", "Badezimmer"], 
+        ["туале́т", "Toilette"], ["сану́зел", "Sanitärbereich (Bad und WC kombiniert)"], 
+        ["де́тская", "Kinderzimmer"], ["столо́вая", "Esszimmer"], ["кабине́т", "Arbeitszimmer"], 
+        ["кладо́вка", "Abstellkammer"], ["балко́н", "Balkon"], ["ло́джия", "Loggia"], 
+        ["гардеро́бная", "Ankleidezimmer"], ["ме́бель", "Möbel"], ["крова́ть", "Bett"], 
+        ["дива́н", "Sofa"], ["стол", "Tisch"], ["пи́сьменный стол", "Schreibtisch"], 
+        ["стул", "Stuhl"], ["шкаф", "Schrank"], ["по́лка", "Regal"], ["стелла́ж", "Standregal"], 
+        ["зе́ркало", "Spiegel"], ["ве́шалка", "Kleiderständer / Aufhänger"], ["пу́фик", "Hocker"], 
+        ["ко́врик", "Matte / kleiner Teppich"], ["гало́шница", "Schuhschrank"], 
+        ["ту́мба", "Unterschrank / Kommode"], ["прикрова́тный сто́лик", "Nachttisch"], 
+        ["по́стер", "Poster"], ["карти́на", "Bild"], ["што́ры", "Vorhänge"], ["кни́га", "Buch"], 
+        ["расте́ние", "Pflanze"], ["цветы́", "Blumen"], ["ва́за", "Vase"], ["штати́в", "Stativ"], 
+        ["зонт", "Regenschirm"], ["ло́жка для о́буви", "Schuhlöffel"], ["ключ", "Schlüssel"], 
+        ["ка́рточка", "Karte"], ["ма́ска", "Maske"], ["ро́утер", "Router"], ["ноутбу́к", "Laptop"], 
+        ["прое́ктор", "Beamer / Projektor"], ["телеви́зор", "Fernseher"], ["ла́мпа", "Lampe"], 
+        ["холоди́льник", "Kühlschrank"], ["плита́", "Herd"], ["духо́вка", "Backofen"], 
+        ["микроволно́вка", "Mikrowelle"], ["посудомо́ечная маши́на", "Spülmaschine"], 
+        ["стира́льная маши́на", "Waschmaschine"], ["пылесо́с", "Staubsauger"], 
+        ["морози́лка", "Gefrierfach"], ["ча́йник", "Wasserkocher"], ["кофемаши́на", "Kaffeemaschine"], 
+        ["ра́ковина", "Waschbecken / Spülbecken"], ["ва́нна", "Badewanne"], 
+        ["унита́з", "Toilettenbecken"], ["му́сорное ведро́", "Mülleimer"], ["посу́да", "Geschirr"], 
+        ["таре́лка", "Teller"], ["ви́лка", "Gabel"], ["ло́жка", "Löffel"], ["нож", "Messer"], 
+        ["ча́шка", "Tasse"], ["жить / пожи́ть", "leben / wohnen"], ["снима́ть / снять", "mieten"], 
+        ["находи́ться (только НСВ)", "sich befinden"], ["расска́зывать / рассказа́ть", "erzählen"], 
+        ["пока́зывать / показа́ть", "zeigen"], ["переезжа́ть / перее́хать", "umziehen"], 
+        ["покупа́ть / купи́ть", "kaufen"], ["стро́ить / постро́ить", "bauen"], 
+        ["гото́вить / пригото́вить", "kochen / zubereiten"], ["есть / пое́сть", "essen"], 
+        ["пить / попи́ть", "trinken"], ["отдыха́ть / отдохну́ть", "sich ausruhen"], 
+        ["спать / поспа́ть", "schlafen"], ["рабо́тать / порабо́тать", "arbeiten"], 
+        ["висе́ть / повисе́ть", "hängen"], ["стоя́ть / постоя́ть", "stehen"], 
+        ["лежа́ть / поле́жать", "liegen"], ["смотре́ть / посмотре́ть", "schauen / betrachten"], 
+        ["одева́ться / оде́ться", "sich anziehen"], ["обува́ться / обу́ться", "sich die Schuhe anziehen"], 
+        ["Росси́я", "Russland"], ["Москва́", "Moskau"], ["юг", "Süden"], 
+        ["райо́н", "Stadtviertel / Bezirk"], ["лес", "Wald"], ["эта́ж", "Etage / Stockwerk"], 
+        ["до́ма", "zu Hause"], ["у́лица", "Straße / draußen"], ["ме́сто", "Platz / Ort"], 
+        ["ую́тный", "gemütlich"]
+    ];
+
+    let deck = [...originalData];
+    let currentIndex = 0;
+
+    const cardElement = document.getElementById('card');
+    const frontText = document.getElementById('front-text');
+    const backText = document.getElementById('back-text');
+    const progressText = document.getElementById('progress');
+
+    // Karte aktualisieren
+    function updateCard() {
+        // Reset flip state
+        cardElement.classList.remove('flipped');
+        
+        setTimeout(() => {
+            const currentPair = deck[currentIndex];
+            frontText.innerText = currentPair[0];
+            backText.innerText = currentPair[1];
+
+            // Schriftgröße anpassen
+            [frontText, backText].forEach(el => {
+                if (el.innerText.length > 20) {
+                    el.classList.add('long-text');
+                } else {
+                    el.classList.remove('long-text');
+                }
+            });
+
+            progressText.innerText = `${currentIndex + 1} / ${deck.length}`;
+        }, 150);
+    }
+
+    // Navigation
+    function nextCard() {
+        if (currentIndex < deck.length - 1) {
+            currentIndex++;
+            updateCard();
+        }
+    }
+
+    function prevCard() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            updateCard();
+        }
+    }
+
+    function flipCard() {
+        cardElement.classList.toggle('flipped');
+    }
+
+    function goHome() {
+        currentIndex = 0;
+        updateCard();
+    }
+
+    // Fisher-Yates Shuffle
+    function shuffleDeck() {
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        currentIndex = 0;
+        updateCard();
+    }
+
+    // Tastatursteuerung
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+            nextCard();
+        } else if (e.key === 'ArrowLeft') {
+            prevCard();
+        } else if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault(); // Verhindert Scrollen bei Leertaste
+            flipCard();
+        } else if (e.key === 'Home') {
+            goHome();
+        }
+    });
+
+    // Initialisierung
+    updateCard();
+</script>
+
+</body>
+</html>
