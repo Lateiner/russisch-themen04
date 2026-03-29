@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wimmelbild: Найди предмет!</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 5px; font-size: 1.6rem; }
+        .instruction { color: #7f8c8d; margin-bottom: 20px; font-style: italic; }
+
+        /* Audio & Frage Bereich */
+        .question-box {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .play-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-size: 2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .play-btn:hover { transform: scale(1.1); }
+
+        #target-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* Wimmelbild-Viewport */
+        .viewport {
+            position: relative;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            line-height: 0;
+            background: #fff;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        #apartment-img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Visuelle Markierung bei Treffer */
+        .marker {
+            position: absolute;
+            width: 6%;
+            padding-bottom: 6%;
+            border: 4px solid var(--success);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            animation: ping 0.8s ease-out;
+            z-index: 10;
+        }
+
+        @keyframes ping {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+
+        #feedback {
+            margin-top: 15px;
+            height: 30px;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        .controls { margin-top: 20px; }
+        .btn-restart {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            #target-text { font-size: 1.2rem; }
+            .play-btn { width: 50px; height: 50px; font-size: 1.5rem; }
+            h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Где это в квартире?</h1>
+    <p class="instruction">Höre die Frage und klicke auf den Gegenstand im Bild.</p>
+
+    <div class="question-box">
+        <button class="play-btn" onclick="askQuestion()">🔊</button>
+        <div id="target-text">Нажми на звук...</div>
+    </div>
+
+    <div class="viewport" id="viewport">
+        <!-- Lokales Bild zimmer.jpg wird geladen -->
+        <img src="zimmer.jpg" id="apartment-img" alt="Wimmelbild Wohnung">
+    </div>
+
+    <div id="feedback"></div>
+
+    <div class="controls">
+        <button class="btn-restart" onclick="startGame()">Заново (Neustart)</button>
+    </div>
+</div>
+
+<script>
+    // Koordinaten (x, y in %) basierend auf deinem Bild
+    const objects = [
+        { name: "холодильник", x: 22, y: 36 },
+        { name: "плита", x: 12, y: 56 },
+        { name: "духовка", x: 13, y: 70 },
+        { name: "стиральная машина", x: 36, y: 48 },
+        { name: "собака", x: 53, y: 70 },
+        { name: "диван", x: 55, y: 65 },
+        { name: "ноутбук", x: 74, y: 81 },
+        { name: "зеркало", x: 68, y: 25 },
+        { name: "кровать", x: 73, y: 50 },
+        { name: "пылесос", x: 92, y: 65 },
+        { name: "полка", x: 49, y: 23 },
+        { name: "цветы", x: 91, y: 40 }
+    ];
+
+    let currentTarget = null;
+    let pool = [];
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        // Männliche Stimme suchen
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel') || v.name.includes('Dmitry')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function startGame() {
+        pool = [...objects].sort(() => Math.random() - 0.5);
+        document.getElementById('feedback').innerText = "";
+        nextTarget();
+    }
+
+    function nextTarget() {
+        if (pool.length === 0) {
+            document.getElementById('target-text').innerText = "Молодец! Ты всё нашёл! 🎉";
+            speak("Молодец! Ты всё нашёл!");
+            return;
+        }
+        currentTarget = pool.pop();
+        document.getElementById('target-text').innerText = "Где ... ?";
+        setTimeout(askQuestion, 500);
+    }
+
+    function askQuestion() {
+        if (currentTarget) {
+            speak("Где " + currentTarget.name + "?");
+            document.getElementById('target-text').innerText = "Где " + currentTarget.name + "?";
+        }
+    }
+
+    // Klick-Erkennung
+    document.getElementById('viewport').onclick = function(e) {
+        if (!currentTarget) return;
+
+        const rect = this.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Distanzprüfung (Toleranz ca. 7%)
+        const dist = Math.sqrt(Math.pow(x - currentTarget.x, 2) + Math.pow(y - currentTarget.y, 2));
+
+        if (dist < 7) {
+            showMarker(currentTarget.x, currentTarget.y);
+            document.getElementById('feedback').innerText = "Правильно! ✓";
+            document.getElementById('feedback').style.color = "var(--success)";
+            speak("Правильно!");
+            nextTarget();
+        } else {
+            document.getElementById('feedback').innerText = "Нет, поищи ещё.";
+            document.getElementById('feedback').style.color = "var(--error)";
+            speak("Нет.");
+        }
+    };
+
+    function showMarker(x, y) {
+        const marker = document.createElement('div');
+        marker.className = 'marker';
+        marker.style.left = x + '%';
+        marker.style.top = y + '%';
+        document.getElementById('viewport').appendChild(marker);
+        setTimeout(() => marker.remove(), 800);
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+    startGame();
+</script>
+
+</body>
+</html>
