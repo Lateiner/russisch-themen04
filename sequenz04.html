@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sequenzierung: Ира показывает квартиру</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 5px; font-size: 1.6rem; }
+        .instruction { color: #7f8c8d; margin-bottom: 25px; font-style: italic; }
+
+        /* Ziel-Bereich (Die geordnete Liste) */
+        .target-area {
+            background: white;
+            min-height: 220px;
+            padding: 15px;
+            border-radius: 15px;
+            border: 2px solid #ddd;
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .ordered-item {
+            background: var(--success);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.4s ease-out;
+            font-weight: bold;
+        }
+
+        .order-number {
+            background: rgba(255,255,255,0.3);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 15px;
+        }
+
+        /* Auswahl-Pool */
+        .pool-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            min-height: 80px;
+        }
+
+        .pool-btn {
+            background: white;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .pool-btn:hover:not(.hidden) {
+            transform: translateY(-2px);
+            background: var(--accent);
+            color: white;
+        }
+
+        .pool-btn.error-shake {
+            animation: shake 0.4s;
+            background-color: var(--error);
+            border-color: var(--error);
+            color: white;
+        }
+
+        .pool-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.8);
+        }
+
+        #feedback {
+            margin-top: 15px;
+            height: 30px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        #restart-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            display: none;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 1.3rem; }
+            .pool-btn { padding: 10px 15px; font-size: 1rem; }
+            .target-area { min-height: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Порядок комнат</h1>
+    <p class="instruction">Was zeigt Ira zuerst? Klicke den nächsten Raum in der richtigen Reihenfolge an.</p>
+    
+    <div class="target-area" id="target-area">
+        <!-- Hier erscheinen die richtigen Stationen -->
+    </div>
+
+    <div class="pool-area" id="pool-area">
+        <!-- Hier liegen die verfügbaren Stationen -->
+    </div>
+
+    <div id="feedback"></div>
+
+    <button id="restart-btn">Заново (Neustart)</button>
+</div>
+
+<script>
+    // Die exakte chronologische Reihenfolge aus Iras Video
+    const correctOrder = [
+        { ru: "Коридор", de: "Flur" },
+        { ru: "Кухня", de: "Küche" },
+        { ru: "Гостиная", de: "Wohnzimmer" },
+        { ru: "Ванная", de: "Badezimmer" },
+        { ru: "Спальня", de: "Schlafzimmer" }
+    ];
+
+    let currentIndex = 0;
+    const targetArea = document.getElementById('target-area');
+    const poolArea = document.getElementById('pool-area');
+    const feedback = document.getElementById('feedback');
+    const restartBtn = document.getElementById('restart-btn');
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 1.0;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function initGame() {
+        targetArea.innerHTML = '';
+        poolArea.innerHTML = '';
+        feedback.innerText = '';
+        currentIndex = 0;
+        restartBtn.style.display = 'none';
+        
+        // Zufällig mischen für den Pool
+        let shuffled = [...correctOrder].sort(() => Math.random() - 0.5);
+        
+        shuffled.forEach(room => {
+            const btn = document.createElement('button');
+            btn.className = 'pool-btn';
+            btn.innerHTML = `${room.ru} <br><small>(${room.de})</small>`;
+            btn.onclick = () => checkSelection(room, btn);
+            poolArea.appendChild(btn);
+        });
+    }
+
+    function checkSelection(room, btn) {
+        const expectedRoom = correctOrder[currentIndex];
+
+        if (room.ru === expectedRoom.ru) {
+            // RICHTIG
+            currentIndex++;
+            btn.classList.add('hidden');
+            feedback.innerText = "Правильно! ✓";
+            feedback.style.color = "var(--success)";
+            
+            // Audio: Raumname + Lob
+            speak(room.ru + ". Правильно.");
+
+            // Zur Liste hinzufügen
+            const item = document.createElement('div');
+            item.className = 'ordered-item';
+            item.innerHTML = `
+                <div class="order-number">${currentIndex}</div>
+                <div class="order-text">${room.ru}</div>
+            `;
+            targetArea.appendChild(item);
+
+            // Prüfen ob fertig
+            if (currentIndex === correctOrder.length) {
+                setTimeout(() => {
+                    feedback.innerText = "Отлично! Ты знаешь весь маршрут. 🎉";
+                    restartBtn.style.display = 'inline-block';
+                }, 500);
+            }
+        } else {
+            // FALSCH
+            feedback.innerText = "Нет, это позже.";
+            feedback.style.color = "var(--error)";
+            speak("Нет.");
+            
+            btn.classList.add('error-shake');
+            setTimeout(() => btn.classList.remove('error-shake'), 400);
+        }
+    }
+
+    restartBtn.onclick = initGame;
+
+    // Stimmen laden
+    window.speechSynthesis.onvoiceschanged = () => {};
+
+    initGame();
+</script>
+
+</body>
+</html>
