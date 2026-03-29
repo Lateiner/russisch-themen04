@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Что лишнее? - Zufällige Positionen</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin-bottom: 5px; font-size: 1.6rem; }
+        .instruction { color: #7f8c8d; margin-bottom: 25px; font-style: italic; }
+
+        .category-box {
+            background: var(--accent);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 2px solid #dfe6e9;
+            padding: 20px 10px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80px;
+        }
+
+        .option-btn:hover:not(.correct):not(.wrong) {
+            border-color: var(--accent);
+            background: #f1f9ff;
+            transform: translateY(-2px);
+        }
+
+        .option-btn.correct { background-color: var(--success) !important; color: white; border-color: var(--success); }
+        .option-btn.wrong { background-color: var(--error) !important; color: white; border-color: var(--error); }
+
+        #feedback { height: 35px; font-weight: bold; margin-top: 10px; font-size: 1.1rem; }
+        #progress { margin-top: 20px; font-size: 0.9rem; color: #b2bec3; font-weight: bold; }
+
+        .restart-btn {
+            margin-top: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .options-grid { grid-template-columns: 1fr; }
+            .option-btn { min-height: 65px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Что здесь лишнее?</h1>
+    <p class="instruction">Was passt <u>nicht</u> dazu?</p>
+    
+    <div id="game-ui">
+        <div class="category-box" id="category-name">Загрузка...</div>
+        
+        <div class="options-grid" id="options-container"></div>
+
+        <div id="feedback"></div>
+        <div id="progress"></div>
+    </div>
+
+    <button class="restart-btn" id="restart-btn" onclick="startGame()">Заново (Neustart)</button>
+</div>
+
+<script>
+    const questions = [
+        { room: "На кухне", options: ["холодильник", "плита", "микроволновка", "кровать"], extra: "кровать" },
+        { room: "В спальне", options: ["кровать", "шкаф", "письменный стол", "унитаз"], extra: "унитаз" },
+        { room: "В гостиной", options: ["диван", "проектор", "книги", "душ"], extra: "душ" },
+        { room: "В ванной", options: ["ванна", "раковина", "полотенце", "плита"], extra: "плита" },
+        { room: "В коридоре", options: ["зеркало", "вешалка", "обувь", "холодильник"], extra: "холодильник" },
+        { room: "В кабинете", options: ["лампа", "компьютер", "стул", "гардеробная"], extra: "гардеробная" },
+        { room: "В кладовке", options: ["коробки", "пылесос", "инструменты", "диван"], extra: "диван" },
+        { room: "На балконе", options: ["цветы", "столик", "стул", "раковина"], extra: "раковина" },
+        { room: "В столовой", options: ["стол", "стулья", "тарелки", "ванна"], extra: "ванна" },
+        { room: "Предметы мебели", options: ["шкаф", "кровать", "кресло", "вилка"], extra: "вилка" }
+    ];
+
+    let currentQuestionIndex = 0;
+    let canClick = true;
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel') || v.name.includes('Dmitry')));
+        if (maleVoice) msg.voice = maleVoice;
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    // Funktion zum Mischen der Optionen (Fisher-Yates Shuffle)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function startGame() {
+        currentQuestionIndex = 0;
+        // Fragen-Reihenfolge ebenfalls mischen, falls gewünscht:
+        questions.sort(() => Math.random() - 0.5);
+        document.getElementById('restart-btn').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        canClick = true;
+        const q = questions[currentQuestionIndex];
+        document.getElementById('category-name').innerText = q.room;
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('progress').innerText = `Вопрос ${currentQuestionIndex + 1} из ${questions.length}`;
+        
+        const container = document.getElementById('options-container');
+        container.innerHTML = "";
+
+        // Hier werden die Optionen für die aktuelle Frage gemischt
+        const shuffledOptions = shuffleArray([...q.options]);
+
+        shuffledOptions.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(opt, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selected, btn) {
+        if (!canClick) return;
+        
+        speak(selected); 
+        const correctAnswer = questions[currentQuestionIndex].extra;
+
+        if (selected === correctAnswer) {
+            canClick = false;
+            btn.classList.add('correct');
+            document.getElementById('feedback').innerText = "Правильно! ✓";
+            document.getElementById('feedback').style.color = "var(--success)";
+            
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < questions.length) {
+                    loadQuestion();
+                } else {
+                    showEnd();
+                }
+            }, 1200);
+        } else {
+            btn.classList.add('wrong');
+            document.getElementById('feedback').innerText = "Нет, это не лишнее.";
+            document.getElementById('feedback').style.color = "var(--error)";
+            setTimeout(() => btn.classList.remove('wrong'), 800);
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('game-ui').style.display = 'none';
+        document.getElementById('restart-btn').style.display = 'inline-block';
+        document.getElementById('feedback').innerText = "Отлично! Ты всё знаешь. 🎉";
+        document.getElementById('feedback').style.color = "var(--primary)";
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+    startGame();
+</script>
+
+</body>
+</html>
