@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерактивная квартира - Учим русский</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f0f3f5;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        .game-container {
+            max-width: 1000px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h1 { margin-top: 0; font-size: 1.8rem; }
+
+        #feedback {
+            height: 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .word-btn {
+            background: white;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .word-btn:hover:not(.disabled) {
+            background: var(--accent);
+            color: white;
+        }
+
+        .word-btn.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .word-btn.disabled {
+            background: #dfe6e9;
+            border-color: #b2bec3;
+            color: #636e72;
+            cursor: default;
+            opacity: 0.6;
+        }
+
+        .image-viewport {
+            position: relative;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            line-height: 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            background: #ddd; /* Platzhalterfarbe */
+        }
+
+        #apartment-map {
+            width: 100%;
+            height: auto;
+            display: block;
+            min-height: 200px;
+        }
+
+        .hotspot {
+            position: absolute;
+            width: 3.5%;
+            padding-bottom: 3.5%;
+            border: 2px solid white;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            transition: transform 0.2s;
+        }
+
+        .hotspot:hover {
+            transform: translate(-50%, -50%) scale(1.3);
+            background: rgba(52, 152, 219, 0.4);
+        }
+
+        .hotspot.correct {
+            background: var(--success) !important;
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+
+        .controls { margin-top: 30px; }
+
+        #btn-restart {
+            background: var(--error);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        @media (max-width: 600px) {
+            .hotspot { width: 5.5%; padding-bottom: 5.5%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>Моя квартира</h1>
+    <div id="feedback">Нажмите на слово, чтобы начать</div>
+
+    <div class="word-bank" id="word-bank"></div>
+
+    <div class="image-viewport">
+        <!-- HIER IST DIE KORREKTUR: src zeigt nun auf deine lokale Datei -->
+        <img src="wohnung.jpg" id="apartment-map" alt="Wohnungsplan">
+        
+        <div class="hotspot" style="top: 45.5%; left: 15.5%;" data-name="спальня"></div>
+        <div class="hotspot" style="top: 45.5%; left: 34%;" data-name="детская"></div>
+        <div class="hotspot" style="top: 25%; left: 42%;" data-name="кабинет"></div>
+        <div class="hotspot" style="top: 15.5%; left: 68.5%;" data-name="балкон"></div>
+        <div class="hotspot" style="top: 46%; left: 61.5%;" data-name="столовая"></div>
+        <div class="hotspot" style="top: 45.5%; left: 86.5%;" data-name="кухня"></div>
+        <div class="hotspot" style="top: 71.5%; left: 75.5%;" data-name="гостиная"></div>
+        <div class="hotspot" style="top: 76.5%; left: 61.5%;" data-name="кладовая"></div>
+        <div class="hotspot" style="top: 76.5%; left: 46%;" data-name="ванная"></div>
+        <div class="hotspot" style="top: 76.5%; left: 28%;" data-name="коридор"></div>
+    </div>
+
+    <div class="controls">
+        <button id="btn-restart">Neustart / Заново</button>
+    </div>
+</div>
+
+<script>
+    const words = ["спальня", "детская", "кухня", "гостиная", "столовая", "коридор", "ванная", "кабинет", "кладовая", "балкон"];
+    let selectedWord = null;
+    const wordBank = document.getElementById('word-bank');
+    const feedback = document.getElementById('feedback');
+    const hotspots = document.querySelectorAll('.hotspot');
+
+    function speakRussian(text) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(v => v.lang.includes('ru') && (v.name.includes('Male') || v.name.includes('Pavel') || v.name.includes('Dmitry')));
+        if (maleVoice) utterance.voice = maleVoice;
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function createButtons() {
+        wordBank.innerHTML = '';
+        words.forEach(word => {
+            const btn = document.createElement('button');
+            btn.className = 'word-btn';
+            btn.innerText = word;
+            btn.onclick = () => {
+                if(btn.classList.contains('disabled')) return;
+                selectedWord = word;
+                document.querySelectorAll('.word-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                speakRussian(word);
+                feedback.innerText = `Где находится ${word}?`;
+                feedback.style.color = "var(--accent)";
+            };
+            wordBank.appendChild(btn);
+        });
+    }
+
+    hotspots.forEach(spot => {
+        spot.onclick = () => {
+            if (!selectedWord) {
+                feedback.innerText = "Сначала выберите слово!";
+                feedback.style.color = "var(--error)";
+                return;
+            }
+            if (spot.dataset.name === selectedWord) {
+                spot.classList.add('correct');
+                feedback.innerText = "Правильно! ✓";
+                feedback.style.color = "var(--success)";
+                const btn = Array.from(document.querySelectorAll('.word-btn')).find(b => b.innerText === selectedWord);
+                btn.classList.remove('selected');
+                btn.classList.add('disabled');
+                selectedWord = null;
+            } else {
+                feedback.innerText = "Нет, попробуйте еще раз!";
+                feedback.style.color = "var(--error)";
+            }
+        };
+    });
+
+    document.getElementById('btn-restart').onclick = () => {
+        selectedWord = null;
+        feedback.innerText = "Выберите слово";
+        feedback.style.color = "var(--primary)";
+        hotspots.forEach(s => s.classList.remove('correct'));
+        createButtons();
+    };
+
+    window.speechSynthesis.onvoiceschanged = () => {};
+    createButtons();
+</script>
+
+</body>
+</html>
